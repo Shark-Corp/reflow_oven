@@ -55,3 +55,5 @@ dkms.conf
 # VSCODE setup
 .vscode/
 *.json
+.DS_STORE
+*/.vscode
