@@ -10,8 +10,8 @@
 #include <TFT_eSPI.h> 
 
 #define LCD_RESET_PIN   4
-#define LCD_SPI_CS_PIN  17
 #define LCD_DC_PIN      16
+#define LCD_SPI_CS_PIN  17
 
 #define TXT_H   8 // text height (in px)
 

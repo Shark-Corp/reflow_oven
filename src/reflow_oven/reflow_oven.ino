@@ -1,7 +1,10 @@
 #include "util.hpp"
 #include "lcd_helper.hpp"
 #include "rotary_helper.hpp"
+#include "temp_sensor.hpp"
 #include "os.hpp"
+
+#define EEPROM_SIZE 30 // 2*2 bytes for temperature + 4*1 bytes for slopes + 2*2bytes for durations = 12 + margin (6) + starts at 10
 
 void ISR_rot_sw_pressed(void);
 
@@ -9,9 +12,11 @@ void generate_home_page(void);
 void generate_config_page(void);
 void home_draw_text(void);
 
-nb_delay_t led_delay;
+nb_delay_t delay_3s;
 temperature_points_t temperature_points;
+temperature_points_t tmp_temp_pts;
 temperature_slopes_t temperature_slopes;
+temperature_slopes_t tmp_temp_slopes;
 
 OS_page *home_page;
 OS_button *config_btn, *run_btn;
@@ -20,7 +25,7 @@ OS_separator *separator_1, *separator_2;
 OS_callback *home_text;
 
 OS_page *config_page;
-OS_button *return_btn;
+OS_button *cancel_btn, *apply_btn;
 OS_nb_input *temp_1_input, *temp_2_input, *slope_a_input, *slope_b_input, *slope_c_input;
 OS_callback *config_text;
 
@@ -30,16 +35,22 @@ bool sw_clicked;
 
 void setup() {
   pinMode(DEBUG_LED_PIN, OUTPUT);
+  digitalWrite(DEBUG_LED_PIN, LOW);
 
   Serial.begin(115200);
   Serial.println("Reflow oven booting...");
 
   // init libraries
   sw_clicked = false;
+  EEPROM.begin(EEPROM_SIZE);
+  thermo_init_pins(); // needs to be called before lcd_init, because SPI stuff creates problem other wise
   lcd_init();
   rotary_init();
-  temp_load_points(temperature_points);
-  temp_load_slopes(temperature_slopes);
+  thermo_init_spi(&lcd_handle.getSPIinstance());
+  temp_load_points(&temperature_points);
+  temp_load_slopes(&temperature_slopes);
+  copy_temp_points(temperature_points, &tmp_temp_pts);
+  copy_temp_slopes(temperature_slopes, &tmp_temp_slopes);
 
   // setup interrupts
   attachInterrupt(digitalPinToInterrupt(ROTARY_SW_PIN), ISR_rot_sw_pressed, FALLING);
@@ -53,14 +64,16 @@ void setup() {
   current_page->enable();
 
   // init delays
-  nb_delay_init(&led_delay, 3000);
+  nb_delay_init(&delay_3s, 3000);
 }
 
 int32_t pos = 0;
+bool test = false;
 void loop() {
-  // if(nb_delay_check(&led_delay)) {
-  //   digitalWrite(DEBUG_LED_PIN, !digitalRead(DEBUG_LED_PIN));
-  // }
+  if(nb_delay_check(&delay_3s)) {
+    // digitalWrite(DEBUG_LED_PIN, !digitalRead(DEBUG_LED_PIN));
+    thermo_print_temp();
+  }
 
   // if(current_page != next_page) {
   //   current_page = next_page;
@@ -70,11 +83,11 @@ void loop() {
   current_page->update_selection(&sw_clicked);
 }
 
-volatile bool in_sw_isr = false; // ISR variable should be volatile (why ?)
+volatile bool in_sw_isr = false; // ISR variable should be volatile (TODO: why ?)
 //TODO: do something to manage switch in "OS" for example just throw a flag, that could be
 // managed in "update_selection" or another function
 void ISR_rot_sw_pressed(void) {
-  if(!in_sw_isr && !sw_clicked) {
+  if(!in_sw_isr && !sw_clicked && !digitalRead(ROTARY_SW_PIN)) {
     in_sw_isr = true;
 
     sw_clicked = true;
@@ -127,19 +140,22 @@ void home_draw_text(void) {
 void generate_config_page(void) {
   config_page = new OS_page();
 
-  return_btn = new OS_button(TFT_BLACK, TFT_GOLD, TFT_DARKGREEN, 5, 5, 3, 3, "Return", go_to_home_page);
-  config_page->add_item(return_btn);
+  apply_btn = new OS_button(TFT_BLACK, TFT_GOLD, TFT_DARKGREEN, 5, 5, 3, 3, "Apply", apply_to_home_page);
+  config_page->add_item(apply_btn);
 
-  temp_1_input = new OS_nb_input(50, 30, &temperature_points.tp1);
+  cancel_btn = new OS_button(TFT_BLACK, TFT_GOLD, TFT_DARKGREEN, 70, 5, 3, 3, "Cancel", cancel_to_home_page);
+  config_page->add_item(cancel_btn);
+
+  temp_1_input = new OS_nb_input(50, 30, &tmp_temp_pts.tp1);
   config_page->add_item(temp_1_input);
-  temp_2_input = new OS_nb_input(50, 46, &temperature_points.tp2);
+  temp_2_input = new OS_nb_input(50, 46, &tmp_temp_pts.tp2);
   config_page->add_item(temp_2_input);
 
-  slope_a_input = new OS_nb_input(55, 70, &temperature_slopes.tsA);
+  slope_a_input = new OS_nb_input(55, 70, &tmp_temp_slopes.tsA);
   config_page->add_item(slope_a_input);
-  slope_b_input = new OS_nb_input(55, 86, &temperature_slopes.tsB);
+  slope_b_input = new OS_nb_input(55, 86, &tmp_temp_slopes.tsB);
   config_page->add_item(slope_b_input);
-  slope_c_input = new OS_nb_input(55, 102, &temperature_slopes.tsC);
+  slope_c_input = new OS_nb_input(55, 102, &tmp_temp_slopes.tsC);
   config_page->add_item(slope_c_input);
 
   config_text = new OS_callback(config_draw_text);
@@ -161,7 +177,21 @@ void go_to_config_page(void) {
   current_page->enable();
 }
 
-void go_to_home_page(void) {
+void apply_to_home_page(void) {
+  copy_temp_points(tmp_temp_pts, &temperature_points);
+  copy_temp_slopes(tmp_temp_slopes, &temperature_slopes);
+
+  temp_save_points(temperature_points);
+  temp_save_slopes(temperature_slopes);
+
+  current_page = home_page;
+  current_page->enable();
+}
+
+void cancel_to_home_page(void) {
+  copy_temp_points(temperature_points, &tmp_temp_pts);
+  copy_temp_slopes(temperature_slopes, &tmp_temp_slopes);
+  
   current_page = home_page;
   current_page->enable();
 }
