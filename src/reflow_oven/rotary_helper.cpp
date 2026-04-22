@@ -10,7 +10,7 @@ void rotary_init(void) {
     pinMode(ROTARY_DT_PIN, INPUT); 
     pinMode(ROTARY_CLK_PIN, INPUT); 
 
-    rot_encoder = new RotaryEncoder(ROTARY_CLK_PIN, ROTARY_DT_PIN, RotaryEncoder::LatchMode::TWO03);
+    rot_encoder = new RotaryEncoder(ROTARY_DT_PIN, ROTARY_CLK_PIN, RotaryEncoder::LatchMode::TWO03);
 
     attachInterrupt(digitalPinToInterrupt(ROTARY_CLK_PIN), rotary_check_pos, CHANGE);
     attachInterrupt(digitalPinToInterrupt(ROTARY_DT_PIN), rotary_check_pos, CHANGE);

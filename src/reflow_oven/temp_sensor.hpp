@@ -9,6 +9,8 @@
 
 #define THERMO_SPI_FREQUENCY  1000000
 
+#define TEMP_SENSOR_CORRECTION 10.0
+
 
 
 void thermo_init_pins(void);

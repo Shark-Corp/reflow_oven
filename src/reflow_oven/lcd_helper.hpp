@@ -25,9 +25,13 @@ void lcd_init(void);
 void lcd_clear(void);
 
 int16_t lcd_get_text_width(String text);
+
+void lcd_pixel(uint32_t x, uint32_t y, uint32_t colour);
+void lcd_circle(uint32_t x, uint32_t y, uint32_t radius, uint32_t colour, bool fill = true);
 void lcd_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t colour, bool fill = true);
 void lcd_line(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint32_t colour);
 void lcd_dashed_h_line(uint32_t x, uint32_t y, uint32_t width, uint8_t dash_size, uint8_t gap_size, uint32_t colour);
+void lcd_dashed_line(int32_t x_start, int32_t y_start, int32_t x_end, int32_t y_end, uint32_t colour);
 void lcd_text(uint32_t x, uint32_t y, String text, int32_t fg_color, uint8_t size = 1, int32_t bg_color = -1);
 
 

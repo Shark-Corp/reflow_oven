@@ -10,7 +10,7 @@
 #define ROTARY_DT_PIN   26
 #define ROTARY_SW_PIN   27
 
-#define ROT_STEP_SIZE 2 // 1 step is actually 2 tick apparently; TODO: check if can be fixed at init
+#define ROT_STEP_SIZE 2 // 1 step is actually 2 tick apparently; TODO: check if can be fixed at init -> LatchMode ?
 
 
 extern RotaryEncoder *rot_encoder;

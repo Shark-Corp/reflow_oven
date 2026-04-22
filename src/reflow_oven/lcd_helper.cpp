@@ -18,6 +18,17 @@ int16_t lcd_get_text_width(String text) {
     return lcd_handle.textWidth(text);
 }
 
+void lcd_pixel(uint32_t x, uint32_t y, uint32_t colour) {
+    lcd_handle.drawPixel(x, y, colour);
+}
+
+void lcd_circle(uint32_t x, uint32_t y, uint32_t radius, uint32_t colour, bool fill) {
+    if(fill) {
+        lcd_handle.fillCircle(x, y, radius, colour);
+    } else {
+        lcd_handle.drawCircle(x, y, radius, colour);
+    }
+}
 
 void lcd_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t colour, bool fill) {
     if(fill) {
@@ -51,6 +62,39 @@ void lcd_dashed_h_line(uint32_t x, uint32_t y, uint32_t width, uint8_t dash_size
     
     for(uint8_t i = 0; i < nb_of_dash; i++) {
         lcd_handle.drawLine(x+i*(dash_size+gap_size), y, x+dash_size+i*(dash_size+gap_size), y, colour);
+    }
+}
+
+void lcd_dashed_line(int32_t x_start, int32_t y_start, int32_t x_end, int32_t y_end, uint32_t colour) {
+    uint16_t line_length = (uint16_t) sqrt(pow(abs((int32_t) (x_end - x_start)), 2) + pow(abs((int32_t) (y_end - y_start)), 2));
+
+    uint8_t dash_length = 2, gap_length = 3;
+    uint8_t dg_len = dash_length + gap_length;
+    uint8_t nb_of_dash = line_length/dg_len;
+    if(line_length % dg_len > 0) {
+        nb_of_dash++;
+    }
+
+    float slope = (float)(y_end - y_start)/(float)(x_end - x_start);
+    float angle = atan(slope);
+
+    float x_cursor = x_start;
+    float y_cursor = y_start;
+    float xl_end = 0;
+    float yl_end = 0;
+    bool draw = true;
+    for(uint8_t i = 0; i < 2*nb_of_dash; i++) {
+        uint8_t length = (draw)? dash_length : gap_length;
+        xl_end = x_cursor + length * cos(angle);
+        yl_end = y_cursor + length * sin(angle);
+
+        if(draw) {
+            lcd_handle.drawLine((int32_t) x_cursor, (int32_t) y_cursor, (int32_t) xl_end, (int32_t) yl_end, colour);
+            draw = false;
+        } else draw = true;
+
+        x_cursor = xl_end;
+        y_cursor = yl_end;
     }
 }
 

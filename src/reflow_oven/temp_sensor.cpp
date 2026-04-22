@@ -30,5 +30,5 @@ float thermo_read_temp_c(void) {
     spi_interface->endTransaction();
 
     celsius_temp = (float) (spi_temperature >> 3) * 0.25;
-    return celsius_temp;
+    return celsius_temp + TEMP_SENSOR_CORRECTION;
 }
